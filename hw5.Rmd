@@ -1,0 +1,89 @@
+---
+title: "HW5"
+author: "Brad Gannon"
+date: "April 7, 2019"
+output: html_document
+---
+
+##1.
+```{r}
+# Read data, import tidyverse
+
+library('tidyverse')
+
+if (file.exists("alcohol.rds")) {
+  data <- readRDS("alcohol.rds")
+} else {
+  url <- "https://xdaiisu.github.io/ds202materials/data/ames.csv"
+  data <- readr::read_csv(url)
+  saveRDS(data, file="alcohol.rds")
+}
+```
+
+##2.
+```{r}
+# Extract geographic latitude and longitute from the variable Store Location
+data$`Store Location` <- str_split_fixed(data$`Store Location`, "\n", 3) # split by '\n'
+data <- add_column(data, LatLong = data$`Store Location`[,3])
+data$LatLong <- str_remove_all(data$LatLong, "[()]")
+data$LatLong <- str_split_fixed(data$LatLong, ", ", 2)
+data <- add_column(data, Latitude = data$LatLong[,1])
+data <- add_column(data, Longitude = data$LatLong[,2]) # Latitude and longitude columns will make graphing easier
+
+# Check variable types. Pick five variables that need to be converted to a different type and fix those
+data$`Zip Code` <- as.integer(data$`Zip Code`)
+data$Latitude <- as.double(data$Latitude)
+data$Longitude <- as.double(data$Longitude)
+data$`Item Number` <- as.integer(data$`Item Number`)
+data$`Invoice/Item Number` <- as.factor(data$`Invoice/Item Number`)
+
+# Extract year, month, and day from the variable Date
+data$Date <- as.Date(data$Date, "%m/%d/%Y")
+year <- as.numeric(format(data$Date, format="%Y"))
+month <- as.numeric(format(data$Date, format="%m"))
+day <- as.numeric(format(data$Date, format="%d"))
+data <- add_column(data, Day = day)
+data <- add_column(data, Month = month)
+data <- add_column(data, Year = year)
+```
+
+##3.
+```{r}
+devtools::install_github("guiastrennec/ggplus") # comment out if already installed
+library('ggplus')
+
+p <- ggplot(data, aes(x=Latitude, y=Longitude)) + geom_point() + ggtitle("Ames Liquor Stores Latitudes and Longitudes")
+p # Show plot
+
+# Need to clean a bit
+data$`Category Name` <- toupper(data$`Category Name`)
+data <- data %>% distinct()
+
+p <- ggplot(data, aes(x=`Category Name`, y=`Volume Sold (Gallons)`, color=`Category Name`, width=0.85)) + geom_bar(stat='identity', width=1)
+p <- p + theme(axis.text.x = element_text(size=5, angle=90, hjust=1, vjust = 0.2)) + xlab('Category') + ylab('Volume Sold (Gallons)')
+p <- p + ggtitle('Gallons Sold by Category') + theme(legend.position = 'none')
+p
+```
+
+##4.
+```{r}
+data2018 <- filter(data, data$Year == "2018") # only 2018 data
+
+sales <- sum(data2018$`Bottles Sold`) # total bottles sold in 2018
+sales
+
+volume <- sum(data2018$`Volume Sold (Liters)`) # total volume sold in 2018
+volume
+
+amtSpent <- sum(data2018$`Sale (Dollars)`)
+amtSpent
+
+# Plot volume sold by day, facet by month
+p <- ggplot(data2018, aes(x=Day, y=`Volume Sold (Liters)`, color=Day)) + geom_point() + facet_wrap(data2018$Month)
+p <- p + ylab("Volume Sold (Liters)") + ggtitle("Liquor Sold in 2018 Grouped by Month")
+p
+```
+List of Home Games in 2018:
+9/1/18, 9/15/18, 9/22/18, 10/13/18, 10/27/18, 11/10/18, 11/24/18, 12/1/18
+
+The graphs do not display any noticeable data for these dates, which is very odd. I looked back through the original data set and cannot find any of these dates having data, so the question of game days resulting in higher alcohol sales cannot be answered with this data set.  
